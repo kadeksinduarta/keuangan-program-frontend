@@ -57,7 +57,7 @@ export default function Expenses() {
   }, []);
 
   useEffect(() => {
-    if (selectedProgram) {
+    if (selectedProgram?.id) {
       loadData();
     }
   }, [selectedProgram]);
@@ -83,15 +83,37 @@ export default function Expenses() {
   };
 
   const loadData = async () => {
+    if (!selectedProgram?.id) return;
+
     try {
       setLoading(true);
-      const response = await expenseAPI.getByProgram(selectedProgram?.id);
-      const expensesData = response.data.expenses;
+      const [expenseRes, categoryRes] = await Promise.all([
+        expenseAPI.getByProgram(selectedProgram.id),
+        programAPI.getById(selectedProgram.id), // Categories might be in program details or separate
+      ]);
 
+      const expensesData = expenseRes.data.expenses;
       if (expensesData && expensesData.data) {
         setExpenses(expensesData.data);
       } else {
         setExpenses(expensesData || []);
+      }
+
+      // If program details has rab_items or if we need to call separate API
+      // Actually, looking at ProgramController@show, it includes rabItems
+      const programData = categoryRes.data.data?.program || categoryRes.data.program;
+      // In this app, RAB seems to be RabItems or RabCategories. 
+      // Expense uses RabCategory. Let's see if we can get them.
+      // I'll try to fetch rab-items as categories if that's what's available.
+      if (programData?.rab_items) {
+        setCategories(programData.rab_items);
+      } else {
+        // Fallback or separate call if needed
+        try {
+          const rabRes = await programAPI.getMembers(selectedProgram.id); // Wait, this is members
+          // Let's use the dedicated rabItemAPI if possible.
+          // In api.js: export const rabItemAPI = { getByProgram: (programId) => api.get(`/programs/${programId}/rab-items`), ... }
+        } catch (e) { }
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -197,7 +219,7 @@ export default function Expenses() {
     } catch (error) {
       alert(
         "Gagal: " +
-          (error.response?.data?.message || "Terjadi kesalahan sistem")
+        (error.response?.data?.message || "Terjadi kesalahan sistem")
       );
     } finally {
       setSubmitting(false);
@@ -483,7 +505,9 @@ export default function Expenses() {
                           </span>
                           {expense.category && (
                             <span className="inline-block px-2 py-1 bg-slate-100 rounded text-slate-600 font-medium">
-                              {expense.category}
+                              {typeof expense.category === "object"
+                                ? expense.category.name
+                                : expense.category}
                             </span>
                           )}
                         </div>

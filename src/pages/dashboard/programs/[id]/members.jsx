@@ -5,7 +5,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { FaUserPlus, FaTrash, FaCheck, FaTimes } from "react-icons/fa";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function ProgramMembersPage({ programId }) {
+export default function ProgramMembersPage() {
+  const router = useRouter();
+  const { id: programId } = router.query;
   const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [email, setEmail] = useState("");
@@ -16,7 +18,7 @@ export default function ProgramMembersPage({ programId }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadMembers();
+    if (programId) loadMembers();
   }, [programId]);
 
   const loadMembers = async () => {
@@ -141,11 +143,6 @@ export default function ProgramMembersPage({ programId }) {
                 <span>
                   {m.user.full_name || m.user.name} ({m.user.email}) -{" "}
                   <span className="font-semibold">{m.role}</span>
-                  {m.status === "pending" && (
-                    <span className="ml-2 px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded">
-                      Menunggu Persetujuan
-                    </span>
-                  )}
                   {m.status === "approved" && (
                     <span className="ml-2 px-2 py-1 text-xs bg-emerald-100 text-emerald-700 rounded">
                       Aktif
@@ -153,31 +150,6 @@ export default function ProgramMembersPage({ programId }) {
                   )}
                 </span>
                 <div className="flex gap-2">
-                  {m.status === "pending" && user && m.user.id === user.id && (
-                    <button
-                      onClick={async () => {
-                        setLoading(true);
-                        setError("");
-                        setSuccess("");
-                        try {
-                          await programAPI.approveMember(programId);
-                          setSuccess("Berhasil approve undangan.");
-                          loadMembers();
-                        } catch (e) {
-                          setError(
-                            e.response?.data?.message ||
-                              "Gagal approve undangan"
-                          );
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      className="px-3 py-1 bg-emerald-600 text-white rounded-lg flex items-center gap-1 font-bold"
-                      disabled={loading}
-                    >
-                      <FaCheck /> Approve
-                    </button>
-                  )}
                   <button
                     onClick={() => handleRemove(m.user.id)}
                     className="px-3 py-1 bg-red-100 text-red-700 rounded-lg flex items-center gap-1"
